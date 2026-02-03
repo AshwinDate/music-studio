@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<title>Indian Classical Music Studio</title>
+
+<style>
+    body {
+        margin: 0;
+        padding: 20px;
+        background: url("background.jpg") no-repeat center center fixed;
+        background-size: cover;
+        font-family: "Segoe UI", sans-serif;
+        color: #ffffff;
+        backdrop-filter: blur(8px);
+    }
+
+    /* MAIN TITLE */
+    h1 {
+        text-align: center;
+        font-size: 40px;
+        color: #000000; 
+        text-shadow: none;
+        margin-bottom: 40px;
+    }
+
+    /* SECTION TITLES */
+    h2 {
+        margin-top: 0;
+        color: #000000; 
+        text-shadow: none;
+    }
+
+    /* SECTION BOXES WITH PARTITION RESTORED */
+    .section {
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(20px);
+        padding: 22px;
+        margin-bottom: 35px;
+        border-radius: 18px;
+
+        /* clean separation between blocks */
+        border-top: 3px solid rgba(0,0,0,0.25);
+        border-left: 1px solid rgba(255,255,255,0.25);
+        border-right: 1px solid rgba(255,255,255,0.25);
+        border-bottom: 1px solid rgba(255,255,255,0.15);
+
+        /* depth effect */
+        box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    }
+
+    /* BUTTONS */
+    button {
+        padding: 10px 22px;
+        border-radius: 50px;
+        font-size: 15px;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        margin-right: 10px;
+        margin-top: 10px;
+        transition: 0.25s ease;
+    }
+
+    .start {
+        background: linear-gradient(135deg, #80ffdf, #68caff);
+        color: black;
+        box-shadow: 0 5px 15px rgba(0,220,255,0.3);
+    }
+    .start:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 20px rgba(0,220,255,0.45);
+    }
+
+    .stop {
+        background: linear-gradient(135deg, #ff8fa5, #ff6f91);
+        color: white;
+        box-shadow: 0 5px 15px rgba(255,105,135,0.3);
+    }
+    .stop:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 20px rgba(255,105,135,0.45);
+    }
+
+    /* Inputs */
+    select, input {
+        padding: 8px 12px;
+        font-size: 15px;
+        border-radius: 12px;
+        border: none;
+        background: rgba(255,255,255,0.45);
+        color: #000;
+        backdrop-filter: blur(10px);
+        outline: none;
+        margin-right: 10px;
+    }
+
+    #bpmSlider {
+        width: 220px;
+    }
+
+</style>
+</head>
+
+<body>
+
+<h1>🎵 Indian Classical Music Web Studio 🎵</h1>
+
+<!-- ===================== PITCH DETECTION ===================== -->
+<div class="section">
+    <h2>🎤 Pitch Detection (Your SA)</h2>
+    <button class="start" onclick="detectPitch()">Start Listening</button>
+    <p>Detected SA: <span id="detectedSa" style="color: gold; font-size: 22px;">--</span></p>
+</div>
+
+<!-- ===================== TANPURA ===================== -->
+<div class="section">
+    <h2>🎶 Tanpura (Auto-Tuned)</h2>
+    <button class="start" onclick="startTanpuraAuto()">Start Tanpura</button>
+    <button class="stop" onclick="stopTanpura()">Stop Tanpura</button>
+</div>
+
+<!-- ===================== TABLA ===================== -->
+<div class="section">
+    <h2>Tabla</h2>
+
+    <select id="tablaTaal">
+        <option value="teentaal">Teentaal</option>
+        <option value="dadra">Dadra</option>
+        <option value="ektal">Ektaal</option>
+        <option value="rupak">Rupak</option>
+        <option value="jhaptal">Jhaptal</option>
+        <option value="bhajani">Bhajani</option>
+    </select>
+
+    BPM: <span id="bpmLabel">120</span>
+    <input type="range" id="bpmSlider" min="40" max="240" value="120"
+           oninput="document.getElementById('bpmLabel').innerText=this.value">
+
+    <br><br>
+    <button class="start" onclick="startTabla()">Start Tabla</button>
+    <button class="stop" onclick="stopTabla()">Stop Tabla</button>
+</div>
+
+<!-- ===================== SURPETI ===================== -->
+<div class="section">
+    <h2> Surpeti (Auto-Tuned)</h2>
+    <button class="start" onclick="startSurpeti()">Start Surpeti</button>
+    <button class="stop" onclick="stopSurpeti()">Stop Surpeti</button>
+</div>
+
+<!-- ===================== SWARMANDAL ===================== -->
+<div class="section">
+    <h2>✨ Swarmandal (Auto-Tuned + Auto-Start)</h2>
+
+    <select id="swarmandalRaag" onchange="scheduleSwarmandal()">
+        <option value="none">Select Raag</option>
+        <option value="yaman">Yaman</option>
+        <option value="des">Des</option>
+        <option value="nand">Nand</option>
+    </select>
+
+    <button class="start" onclick="playSwarmandal()">Play Swarmandal</button>
+    <button class="stop" onclick="stopSwarmandal()">Stop Swarmandal</button>
+</div>
+
+<!-- ======================== SCRIPT ======================== -->
+<script>
+
+/* GLOBALS */
+let tanpuraCtx, tanpuraSrc;
+let tablaCtx, tablaSrc;
+let surpetiCtx, surpetiSrc;
+let swarmandalCtx, swarmandalSrc;
+let swarmandalTimer = null;
+let micCtx, micStream;
+
+/* ---- Helper: Scale Ratio ---- */
+function getScaleRatio(note) {
+    const notes = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+    return Math.pow(2, notes.indexOf(note) / 12);
+}
+
+/* ---- Helper: Convert Hz → Note ---- */
+function freqToNoteName(freq) {
+    const notes = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+    const A4 = 440;
+    const n = Math.round(12 * (Math.log(freq / A4) / Math.log(2))) + 57;
+    return notes[n % 12];
+}
+
+/* ---- PITCH DETECTION ---- */
+async function detectPitch() {
+    micCtx = new AudioContext();
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const source = micCtx.createMediaStreamSource(micStream);
+
+    const analyser = micCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    const buffer = new Float32Array(analyser.fftSize);
+
+    source.connect(analyser);
+
+    function loop() {
+        analyser.getFloatTimeDomainData(buffer);
+        const pitch = autocorrelate(buffer, micCtx.sampleRate);
+
+        if (pitch) {
+            document.getElementById("detectedSa").innerText = freqToNoteName(pitch);
+        }
+
+        requestAnimationFrame(loop);
+    }
+    loop();
+}
+
+/* ---- Autocorrelation ---- */
+function autocorrelate(buf, sampleRate) {
+    let SIZE = buf.length;
+    let rms = 0;
+
+    for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+    rms = Math.sqrt(rms / SIZE);
+
+    if (rms < 0.01) return null;
+
+    let bestOffset = -1;
+    let bestCorr = 0;
+    let lastCorr = 1;
+    let maxSamples = SIZE / 2;
+
+    for (let offset = 10; offset < maxSamples; offset++) {
+        let corr = 0;
+        for (let i = 0; i < maxSamples; i++) {
+            corr += Math.abs(buf[i] - buf[i + offset]);
+        }
+        corr = 1 - (corr / maxSamples);
+
+        if (corr > 0.9 && corr > lastCorr) {
+            bestCorr = corr;
+            bestOffset = offset;
+        }
+        lastCorr = corr;
+    }
+
+    if (bestOffset > -1) {
+        return sampleRate / bestOffset;
+    }
+    return null;
+}
+
+/* ---- TANPURA ---- */
+async function startTanpuraAuto() {
+    stopTanpura();
+
+    const sa = document.getElementById("detectedSa").innerText;
+    if (sa === "--") return alert("No SA detected!");
+
+    const base = "E";
+    const ratio = getScaleRatio(sa) / getScaleRatio(base);
+
+    tanpuraCtx = new AudioContext();
+    const arr = await fetch("audio/tanpura/base.mp3").then(r=>r.arrayBuffer());
+    const buffer = await tanpuraCtx.decodeAudioData(arr);
+
+    tanpuraSrc = tanpuraCtx.createBufferSource();
+    tanpuraSrc.buffer = buffer;
+    tanpuraSrc.loop = true;
+    tanpuraSrc.playbackRate.value = ratio;
+    tanpuraSrc.connect(tanpuraCtx.destination);
+    tanpuraSrc.start();
+}
+
+function stopTanpura() {
+    try { tanpuraSrc?.stop(); } catch(e){}
+    try { tanpuraCtx?.close(); } catch(e){}
+}
+
+/* ---- TABLA ---- */
+async function startTabla() {
+    stopTabla();
+
+    const sa = document.getElementById("detectedSa").innerText;
+    const base = "E";
+    const pitchRatio = getScaleRatio(sa) / getScaleRatio(base);
+
+    const bpm = parseInt(document.getElementById("bpmSlider").value);
+    const bpmRatio = bpm / 120;
+
+    const taal = document.getElementById("tablaTaal").value;
+
+    tablaCtx = new AudioContext();
+    const arr = await fetch(`audio/tabla/${taal}/base.mp3`).then(r=>r.arrayBuffer());
+    const buffer = await tablaCtx.decodeAudioData(arr);
+
+    tablaSrc = tablaCtx.createBufferSource();
+    tablaSrc.buffer = buffer;
+    tablaSrc.loop = true;
+    tablaSrc.playbackRate.value = pitchRatio * bpmRatio;
+    tablaSrc.connect(tablaCtx.destination);
+    tablaSrc.start();
+}
+
+function stopTabla() {
+    try { tablaSrc?.stop(); } catch(e){}
+    try { tablaCtx?.close(); } catch(e){}
+}
+
+/* ---- SURPETI ---- */
+async function startSurpeti() {
+    stopSurpeti();
+
+    const sa = document.getElementById("detectedSa").innerText;
+    const base = "E";
+    const ratio = getScaleRatio(sa) / getScaleRatio(base);
+
+    surpetiCtx = new AudioContext();
+    const arr = await fetch("audio/surpeti/base.mp3").then(r=>r.arrayBuffer());
+    const buffer = await surpetiCtx.decodeAudioData(arr);
+
+    surpetiSrc = surpetiCtx.createBufferSource();
+    surpetiSrc.buffer = buffer;
+    surpetiSrc.loop = true;
+    surpetiSrc.playbackRate.value = ratio;
+    surpetiSrc.connect(surpetiCtx.destination);
+    surpetiSrc.start();
+}
+
+function stopSurpeti() {
+    try { surpetiSrc?.stop(); } catch(e){}
+    try { surpetiCtx?.close(); } catch(e){}
+}
+
+/* ---- SWARMANDAL ---- */
+function scheduleSwarmandal() {
+    if (swarmandalTimer) clearTimeout(swarmandalTimer);
+
+    const raag = document.getElementById("swarmandalRaag").value;
+    if (raag === "none") return;
+
+    swarmandalTimer = setTimeout(() => playSwarmandal(), 60000);
+}
+
+async function playSwarmandal() {
+    stopSwarmandal();
+
+    const sa = document.getElementById("detectedSa").innerText;
+    const base = "E";
+    const ratio = getScaleRatio(sa) / getScaleRatio(base);
+
+    const raag = document.getElementById("swarmandalRaag").value;
+
+    swarmandalCtx = new AudioContext();
+    const arr = await fetch(`audio/swarmandal/${raag}/base.mp3`).then(r=>r.arrayBuffer());
+    const buffer = await swarmandalCtx.decodeAudioData(arr);
+
+    swarmandalSrc = swarmandalCtx.createBufferSource();
+    swarmandalSrc.buffer = buffer;
+    swarmandalSrc.playbackRate.value = ratio;
+    swarmandalSrc.connect(swarmandalCtx.destination);
+    swarmandalSrc.start();
+}
+
+function stopSwarmandal() {
+    try { swarmandalSrc?.stop(); } catch(e){}
+    try { swarmandalCtx?.close(); } catch(e){}
+}
+
+</script>
+
+</body>
+</html>
